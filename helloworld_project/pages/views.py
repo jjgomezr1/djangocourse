@@ -6,8 +6,106 @@ from django.shortcuts import redirect, get_object_or_404
 from .models import Product 
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.shortcuts import render
+from .utils import FileStorage
+from pages.utils import ImageLocalStorage
 
 # Create your views here.
+
+class ImageViewNoDI(View):
+  template_name = 'images/index.html'
+  def get(self, request):
+   image_url = request.session.get('image_url', '')
+
+   return render(request, self.template_name, {'image_url': image_url})
+  def post(self, request):
+   image_storage = ImageLocalStorage()
+   image_url = image_storage.store(request)
+   request.session['image_url'] = image_url
+   return redirect('image_index')
+
+class UploadImageView(View):
+    template_name = 'upload.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+    def post(self, request):
+        storage = ImageLocalStorage()  # Sin abstracción
+        image_url = storage.store(request)
+        return render(request, self.template_name, {'image_url': image_url})
+
+def ImageViewFactory(image_storage):
+    class ImageView(View):
+        template_name = 'images/index.html'
+
+        def get(self, request):
+            image_url = request.session.get('image_url', '')
+            return render(request, self.template_name, {'image_url': image_url})
+
+        def post(self, request):
+            image_url = image_storage.store(request)
+            request.session['image_url'] = image_url
+            return redirect('image_index')
+
+    return ImageView
+
+class UploadImageView(View):
+    template_name = 'pages/upload.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+    def post(self, request):
+        uploaded_file = request.FILES['image']  # Recibe el archivo
+        storage = FileStorage()  # Usamos la clase de utils.py
+        file_url = storage.save(uploaded_file, uploaded_file.name)
+        return render(request, self.template_name, {'file_url': file_url})
+
+class CartView(View):
+    template_name = 'cart/index.html'
+
+    def get(self, request):
+        # Simulación de "base de datos"
+        products = {
+            121: {'name': 'Tv samsung', 'price': '1000'},
+            11: {'name': 'Iphone', 'price': '2000'}
+        }
+
+        # Obtener productos del carrito desde sesión
+        cart_products = {}
+        cart_product_data = request.session.get('cart_product_data', {})
+
+        for key, product in products.items():
+            if str(key) in cart_product_data.keys():
+                cart_products[key] = product
+
+        # Datos para la vista
+        view_data = {
+            'title': 'Cart - Online Store',
+            'subtitle': 'Shopping Cart',
+            'products': products,
+            'cart_products': cart_products
+        }
+
+        return render(request, self.template_name, view_data)
+
+    def post(self, request, product_id):
+        # Agregar un producto al carrito
+        cart_product_data = request.session.get('cart_product_data', {})
+        cart_product_data[str(product_id)] = product_id
+        request.session['cart_product_data'] = cart_product_data
+
+        return redirect('cart_index')
+
+
+class CartRemoveAllView(View):
+    def post(self, request):
+        # Vaciar el carrito
+        if 'cart_product_data' in request.session:
+            del request.session['cart_product_data']
+
+        return redirect('cart_index')
 
 class ProductForm(forms.ModelForm):
    class Meta: 

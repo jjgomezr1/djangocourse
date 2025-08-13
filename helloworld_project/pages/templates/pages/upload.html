@@ -1,0 +1,16 @@
+{% extends 'pages/base.html' %}
+
+{% block content %}
+<h2>Subir Imagen</h2>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="image" required>
+    <button type="submit">Subir</button>
+</form>
+
+{% if file_url %}
+    <p>Imagen subida:</p>
+    <img src="{{ file_url }}" alt="Imagen subida" width="200">
+{% endif %}
+{% endblock %}
